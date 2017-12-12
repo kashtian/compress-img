@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const gm = require('gm');
 const colors = require('colors');
+const imagemin = require('imagemin');
+const imageminPng = require('imagemin-pngquant');
 
 colors.setTheme({
     error: 'red',
@@ -15,6 +17,8 @@ let commands = {
     '-s, --source [absolute path]': '需要压缩的图片目录地址（绝对路径）',
     '-d, --dest [absolute path]': '图片压缩后存储的目录地址（绝对路径）',
     '-q, --quality [number]': '图片压缩的质量选择0-100,默认88',
+    '-qp, --quality_png [number]': '指定png图片压缩质量0-100',
+    '-qj, --quality_jpg [number]': '指定jpg图片压缩质量0-100',
 }
 let options = {
         source: './images',
@@ -72,23 +76,41 @@ function compress() {
             if (/^\./.test(file)) {
                 return;
             }
-            compressSingleFile(file);
+            if (/\.png/.test(file)) {
+                compressPng(file);
+            } else {
+                compressSingleFile(file);
+            }            
         })       
         
     })    
 }
 
-// 根据文件名压缩单个文件
+// 根据文件名压缩单个文件(jpg)
 function compressSingleFile(fileName) {
     gm(`${options.source}/${fileName}`)
-    .quality(options.quality)
-    .compress('None')
+    .quality(options.quality_jpg || options.quality)
     .write(`${options.dest}/${fileName}`, function(err) {
         if (err) {
             console.log(`compress ${fileName} error: ${err}`.error)
         } else {
             console.log(`compress ${fileName} success`.success)
         }
+    })
+}
+
+// 压缩png图片
+function compressPng(fileName) {
+    imagemin([`${options.source}/${fileName}`], `${options.dest}`, {
+        plugins: [
+            imageminPng({
+                quality: options.quality_png || options.quality
+            })
+        ]
+    }).then(files => {
+        console.log(`compress ${fileName} success`.success)
+    }).catch(err => {
+        console.log(`compress ${fileName} error: ${err}`.error)
     })
 }
 
@@ -107,7 +129,7 @@ function checkAbPathByKey(key, value) {
 function keyMap() {
     let map = {};
     for (let key in commands) {
-        if (/-(\w).*--(\w+)/.test(key)) {
+        if (/-(\w+).*--(\w+)/.test(key)) {
             map[RegExp.$1] = RegExp.$2;
         }
     }
